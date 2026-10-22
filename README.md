@@ -33,4 +33,4 @@ Open the configured local port at /login. The app creates its tables at startup.
 
 - The embedded checker shares Railway's failure domain. Use an independent external monitor for this hub and critical endpoints.
 - Email, calendar, Slack, Facebook, and Zalo connectors are deferred pending provider and account decisions.
-- Provider calls have not been exercised against this owner's live accounts. See [source contracts](docs/SOURCES.md) and [operations](docs/OPERATIONS.md).
+- Railway billing, resource metrics, and service inventory queries were exercised using the authenticated local CLI. The future service token and R2/GitHub API access remain unverified. See [source contracts](docs/SOURCES.md), [production service inventory](docs/20261022-103123-railway-inventory.md), [decisions](docs/DECISIONS.md), and [operations](docs/OPERATIONS.md).
