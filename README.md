@@ -29,6 +29,8 @@ The Go commands are identical on macOS, Ubuntu, and Fedora once Go 1.24+ and Pos
 
 Open the configured local port at /login. The app creates its tables at startup. /healthz returns 503 when Postgres is unavailable.
 
+For Railway setup, database backup, alert ownership, and rollback, follow [Railway handoff](docs/RAILWAY.md) and [operations](docs/OPERATIONS.md). The [Phase 4 verification record](docs/20261022-151709-phase-4-verification.md) lists local checks and deployment checks still for the owner.
+
 ## Dashboard
 
 The owner-only dashboard groups site health, Railway, R2, GitHub, request traffic, and domain cards. Each card shows its status, source, collection time, and measurement window when available. Its History link shows recent observations; `/api/cards` and `/api/history` provide the same data as JSON behind the same login. The attention count includes down, degraded, stale, and not-configured cards. Sessions last 12 hours.
