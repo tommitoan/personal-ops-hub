@@ -71,6 +71,7 @@ func runLoop(ctx context.Context, cfg config.Config, st *store.Store, checker *m
 		now := time.Now().UTC()
 		cards := []core.Card{}
 		cards = append(cards, collector.Railway(ctx, cfg, now)...)
+		cards = append(cards, collector.RailwayServices(ctx, cfg, now)...)
 		cards = append(cards, collector.R2(ctx, cfg, now)...)
 		cards = append(cards, collector.GitHub(ctx, cfg, now))
 		for _, target := range cfg.Metrics {
