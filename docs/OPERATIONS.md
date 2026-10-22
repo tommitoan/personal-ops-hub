@@ -11,6 +11,7 @@ Observations older than 30 days are deleted daily. Latest cards and incident sta
 ## Secrets and access
 
 Serve the dashboard only over HTTPS. Put credentials in Railway variables, not Git or docs. Rotate a provider token, redeploy, then confirm its card recovers. Rotating SESSION_SECRET invalidates sessions. Avoid public caching of /api/cards.
+The owner session cookie is HttpOnly, SameSite Strict, and Secure by default. Logout clears the browser cookie; rotate SESSION_SECRET to invalidate every previously issued cookie immediately.
 
 ## Troubleshooting
 

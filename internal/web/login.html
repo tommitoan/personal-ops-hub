@@ -1,0 +1,33 @@
+<!doctype html>
+<html lang="vi">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Đăng nhập · Personal Ops Hub</title>
+  <style>
+    :root { color-scheme: dark; font-family: system-ui, sans-serif; background: #0b1118; color: #edf2f7; }
+    * { box-sizing: border-box; }
+    body { min-height: 100vh; display: grid; place-items: center; margin: 0; padding: 18px; }
+    main { width: min(100%, 400px); background: #141e29; border: 1px solid #304154; border-radius: 16px; padding: 26px; }
+    h1 { margin: 0 0 8px; font-size: 1.75rem; }
+    p { color: #aebbc9; line-height: 1.45; }
+    label { display: block; margin: 18px 0; }
+    input { display: block; width: 100%; padding: 12px; margin-top: 7px; border: 1px solid #71869a; border-radius: 8px; background: #0b1118; color: inherit; font: inherit; }
+    input:focus-visible, button:focus-visible { outline: 3px solid #9dd8ff; outline-offset: 3px; }
+    button { width: 100%; padding: 12px; border: 0; border-radius: 8px; background: #9dd8ff; color: #0b1118; font: inherit; font-weight: 700; cursor: pointer; }
+  </style>
+</head>
+<body>
+  <main>
+    <h1>Personal Ops Hub</h1>
+    <p>Đăng nhập để xem trạng thái các dịch vụ và tài khoản của bạn.</p>
+    <form method="post" action="/login">
+      <label for="username">Tên đăng nhập</label>
+      <input id="username" name="username" autocomplete="username" required autofocus>
+      <label for="password">Mật khẩu</label>
+      <input id="password" type="password" name="password" autocomplete="current-password" required>
+      <button type="submit">Đăng nhập</button>
+    </form>
+  </main>
+</body>
+</html>
