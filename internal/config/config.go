@@ -33,22 +33,22 @@ type MetricTarget struct {
 
 // Config contains the runtime settings for one owner-only hub.
 type Config struct {
-	Port, DatabaseURL, Username, Password, SessionSecret   string
-	Sites                                                  []Target
-	Domains                                                []Domain
-	Metrics                                                []MetricTarget
-	CheckInterval                                          time.Duration
-	FailureThreshold                                       int
-	RailwayToken, RailwayEnvironmentID, RailwayWorkspaceID string
-	CloudflareToken, CloudflareAccountID                   string
-	R2Buckets                                              []string
-	GitHubToken, GitHubLogin                               string
-	AlertWebhookURL                                        string
+	Port, DatabaseURL, Username, Password, SessionSecret                     string
+	Sites                                                                    []Target
+	Domains                                                                  []Domain
+	Metrics                                                                  []MetricTarget
+	CheckInterval                                                            time.Duration
+	FailureThreshold                                                         int
+	RailwayToken, RailwayEnvironmentID, RailwayWorkspaceID, RailwayProjectID string
+	CloudflareToken, CloudflareAccountID                                     string
+	R2Buckets                                                                []string
+	GitHubToken, GitHubLogin                                                 string
+	AlertWebhookURL                                                          string
 }
 
 // Load reads and validates owner-controlled environment configuration.
 func Load() (Config, error) {
-	c := Config{Port: env("PORT", "8080"), DatabaseURL: os.Getenv("DATABASE_URL"), Username: os.Getenv("HUB_USERNAME"), Password: os.Getenv("HUB_PASSWORD"), SessionSecret: os.Getenv("SESSION_SECRET"), RailwayToken: os.Getenv("RAILWAY_TOKEN"), RailwayEnvironmentID: os.Getenv("RAILWAY_ENVIRONMENT_ID"), RailwayWorkspaceID: os.Getenv("RAILWAY_WORKSPACE_ID"), CloudflareToken: os.Getenv("CLOUDFLARE_TOKEN"), CloudflareAccountID: os.Getenv("CLOUDFLARE_ACCOUNT_ID"), GitHubToken: os.Getenv("GITHUB_TOKEN"), GitHubLogin: os.Getenv("GITHUB_LOGIN"), AlertWebhookURL: os.Getenv("ALERT_WEBHOOK_URL")}
+	c := Config{Port: env("PORT", "8080"), DatabaseURL: os.Getenv("DATABASE_URL"), Username: os.Getenv("HUB_USERNAME"), Password: os.Getenv("HUB_PASSWORD"), SessionSecret: os.Getenv("SESSION_SECRET"), RailwayToken: os.Getenv("RAILWAY_TOKEN"), RailwayEnvironmentID: os.Getenv("RAILWAY_ENVIRONMENT_ID"), RailwayWorkspaceID: os.Getenv("RAILWAY_WORKSPACE_ID"), RailwayProjectID: os.Getenv("RAILWAY_PROJECT_ID"), CloudflareToken: os.Getenv("CLOUDFLARE_TOKEN"), CloudflareAccountID: os.Getenv("CLOUDFLARE_ACCOUNT_ID"), GitHubToken: os.Getenv("GITHUB_TOKEN"), GitHubLogin: os.Getenv("GITHUB_LOGIN"), AlertWebhookURL: os.Getenv("ALERT_WEBHOOK_URL")}
 	if c.DatabaseURL == "" || c.Username == "" || c.Password == "" || len(c.Password) < 16 || len(c.SessionSecret) < 32 {
 		return c, errors.New("DATABASE_URL, HUB_USERNAME, HUB_PASSWORD (16+ chars), and SESSION_SECRET (32+ chars) are required")
 	}

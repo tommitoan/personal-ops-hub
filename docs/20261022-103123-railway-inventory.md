@@ -27,7 +27,11 @@ The Railway API also lists Railway-generated domains for PhanHuynh UI, Trala UI,
 
 ## Health contract
 
-- For every Railway service, collect deployment state with source timestamp and preserve `no active deployment` as its own state. This is a Phase 2 connector requirement; the current dashboard does not yet implement it.
+- For every Railway service, collect deployment state with a collection timestamp and preserve `no active deployment` as its own state. The Phase 2 connector now creates one card per service when RAILWAY_PROJECT_ID is configured.
 - For public HTTP services, configure an owner-approved HTTPS URL and expected response. A domain alone does not establish a valid `/health` path; authenticated or sleeping apps may reject or delay probes. The current checker expects an HTTP success response.
 - For Trala Backend, Redis, and Pressroom, use Railway deployment status until a reachable, safe health source is chosen. Do not probe Railway private addresses through the public checker.
 - Application request counts require instrumentation or an authorized analytics source for each app. Railway CPU/network metrics are not request counts.
+
+## Audit Log
+
+- 2026-10-22: Phase 2 implemented the single-query service inventory collector. The same query shape was revalidated read-only against the selected project; it returned 18 services, no next page, and three without active deployments.
