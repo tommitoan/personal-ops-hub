@@ -1,3 +1,88 @@
-<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Personal Ops Hub</title><style>
-:root{color-scheme:dark;font-family:system-ui,sans-serif;background:#0d1117;color:#e6edf3}body{max-width:1200px;margin:auto;padding:24px}header{display:flex;align-items:center;justify-content:space-between;gap:12px}h1{margin-bottom:4px}p{line-height:1.45}.muted{color:#9da7b3}.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:14px;margin-top:24px}.card{background:#161b22;border:1px solid #30363d;border-radius:14px;padding:18px;min-height:145px}.card h2{font-size:1rem;margin:0 0 10px}.card p{font-size:1.25rem;margin:8px 0}.pill{display:inline-block;padding:4px 9px;border-radius:99px;background:#30363d;font-size:.75rem}.healthy{background:#16472b;color:#b7f7c6}.degraded,.stale{background:#5c4417;color:#ffe5a5}.down{background:#5d1f25;color:#ffb9c0}.card small{color:#9da7b3;display:block}.card a{color:#8cc8ff}button{background:#30363d;border:0;color:inherit;padding:9px 12px;border-radius:8px;cursor:pointer}footer{margin-top:30px;color:#9da7b3;font-size:.85rem}@media(max-width:480px){body{padding:16px}header{align-items:flex-start}h1{font-size:1.5rem}}
-</style></head><body><header><div><h1>Personal Ops Hub</h1><div class="muted">Private operations overview · {{.Now.Format "02 Jan 2006 15:04 UTC"}}</div></div><form method="post" action="/logout"><button>Sign out</button></form></header><main><div class="grid">{{range .Cards}}<article class="card"><h2>{{.Title}}</h2><span class="pill {{.Status}}">{{.Status}}</span><p>{{.Summary}}</p>{{if .Window}}<small>{{.Window}}</small>{{end}}<small>{{.Source}} · updated {{.UpdatedAt.Format "02 Jan 15:04 UTC"}}</small>{{if .Link}}<a href="{{.Link}}" rel="noreferrer" target="_blank">Open source ↗</a>{{end}}</article>{{else}}<article class="card"><h2>No observations yet</h2><p>Configure a site or provider and wait for the first collection.</p></article>{{end}}</div></main><footer>Provider cards are cached summaries. Billing and account dashboards remain authoritative.</footer></body></html>
+<!doctype html>
+<html lang="vi">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Personal Ops Hub</title>
+  <style>
+    :root { color-scheme: dark; font-family: system-ui, sans-serif; background: #0b1118; color: #edf2f7; }
+    * { box-sizing: border-box; }
+    body { margin: 0; }
+    a { color: #9dd8ff; }
+    a:focus-visible, button:focus-visible { outline: 3px solid #9dd8ff; outline-offset: 3px; }
+    .skip { position: absolute; left: 12px; top: -60px; background: #edf2f7; color: #0b1118; padding: 10px; z-index: 2; }
+    .skip:focus { top: 12px; }
+    .shell { max-width: 1240px; margin: auto; padding: 28px 24px 48px; }
+    header { display: flex; justify-content: space-between; align-items: flex-start; gap: 20px; }
+    h1 { margin: 0; font-size: clamp(1.6rem, 4vw, 2.3rem); letter-spacing: -.03em; }
+    h2 { font-size: 1.25rem; margin: 0 0 14px; }
+    p { line-height: 1.45; }
+    .muted, small { color: #aebbc9; }
+    .intro { margin: 8px 0 0; }
+    .summary { display: flex; flex-wrap: wrap; gap: 12px; margin: 30px 0; }
+    .summary div { background: #172330; border: 1px solid #32475a; border-radius: 12px; padding: 14px 18px; min-width: 150px; }
+    .summary strong { display: block; font-size: 1.7rem; }
+    .group { margin: 30px 0; }
+    .group-head { display: flex; gap: 10px; align-items: baseline; }
+    .group-head small { font-size: .9rem; }
+    .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 260px), 1fr)); gap: 14px; }
+    .card { min-width: 0; background: #141e29; border: 1px solid #304154; border-radius: 14px; padding: 18px; }
+    .card h3 { font-size: 1rem; margin: 0 0 10px; overflow-wrap: anywhere; }
+    .card p { font-size: 1.1rem; margin: 14px 0; overflow-wrap: anywhere; }
+    .pill { display: inline-block; border-radius: 999px; background: #344353; padding: 5px 10px; font-size: .8rem; font-weight: 650; }
+    .healthy { background: #174932; color: #c4f7d5; }
+    .degraded, .stale, .not-configured { background: #5b451d; color: #ffe6ad; }
+    .down { background: #64292f; color: #ffd1d4; }
+    .meta { display: grid; gap: 4px; margin-top: 14px; }
+    .meta small { overflow-wrap: anywhere; }
+    .links { display: flex; flex-wrap: wrap; gap: 14px; margin-top: 16px; }
+    button { background: #243648; border: 1px solid #54718b; border-radius: 8px; color: inherit; font: inherit; padding: 9px 13px; cursor: pointer; }
+    footer { border-top: 1px solid #304154; padding-top: 16px; margin-top: 36px; color: #aebbc9; font-size: .9rem; }
+    @media (max-width: 480px) { .shell { padding: 18px 14px 32px; } header { align-items: flex-start; } .summary { margin: 22px 0; } .summary div { flex: 1 1 130px; min-width: 0; } }
+  </style>
+</head>
+<body>
+  <a class="skip" href="#main">Đến nội dung chính</a>
+  <div class="shell">
+    <header>
+      <div>
+        <h1>Personal Ops Hub</h1>
+        <p class="intro muted">Tổng quan riêng tư · {{.Now.Format "02 Jan 2006 15:04 UTC"}}</p>
+      </div>
+      <form method="post" action="/logout"><button type="submit">Đăng xuất</button></form>
+    </header>
+    <main id="main">
+      <div class="summary" aria-label="Tổng quan trạng thái">
+        <div><strong>{{.Total}}</strong><span>Tín hiệu</span></div>
+        <div><strong>{{.Attention}}</strong><span>Cần xem</span></div>
+      </div>
+      {{range .Sections}}
+      <section class="group" aria-label="{{.Title}}">
+        <div class="group-head"><h2>{{.Title}}</h2><small>{{len .Cards}} tín hiệu</small></div>
+        <div class="grid">
+          {{range .Cards}}
+          <article class="card">
+            <h3>{{.Title}}</h3>
+            <span class="pill {{if eq .Status "not configured"}}not-configured{{else}}{{.Status}}{{end}}">{{.Status}}</span>
+            <p>{{.Summary}}</p>
+            <div class="meta">
+              {{if .Window}}<small>Khoảng đo: {{.Window}}</small>{{end}}
+              <small>Nguồn: {{.Source}}</small>
+              <small>Thu thập: {{.UpdatedAt.UTC.Format "02 Jan 2006 15:04 UTC"}}</small>
+            </div>
+            <div class="links">
+              <a href="/history?key={{.Key}}">Lịch sử</a>
+              {{if .Link}}<a href="{{.Link}}" rel="noopener noreferrer" target="_blank">Mở nguồn ↗</a>{{end}}
+            </div>
+          </article>
+          {{end}}
+        </div>
+      </section>
+      {{else}}
+      <section class="group"><h2>Chưa có dữ liệu</h2><p>Thêm site hoặc provider vào cấu hình rồi chờ lần thu thập đầu tiên.</p></section>
+      {{end}}
+    </main>
+    <footer>Dữ liệu được lưu tạm để theo dõi. Dashboard của từng provider vẫn là nguồn chính cho billing và tài khoản.</footer>
+  </div>
+</body>
+</html>

@@ -1,0 +1,54 @@
+<!doctype html>
+<html lang="vi">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Lịch sử · Personal Ops Hub</title>
+  <style>
+    :root { color-scheme: dark; font-family: system-ui, sans-serif; background: #0b1118; color: #edf2f7; }
+    * { box-sizing: border-box; }
+    body { max-width: 960px; margin: auto; padding: 28px 20px; }
+    a { color: #9dd8ff; }
+    a:focus-visible { outline: 3px solid #9dd8ff; outline-offset: 3px; }
+    h1 { overflow-wrap: anywhere; font-size: clamp(1.5rem, 4vw, 2rem); }
+    .muted { color: #aebbc9; }
+    .scroll { overflow-x: auto; }
+    table { width: 100%; border-collapse: collapse; min-width: 480px; }
+    th, td { text-align: left; vertical-align: top; padding: 12px; border-bottom: 1px solid #304154; }
+    th { color: #aebbc9; }
+    td { overflow-wrap: anywhere; }
+    .stale, .degraded, .not-configured { color: #ffe6ad; }
+    .down { color: #ffd1d4; }
+    .healthy { color: #c4f7d5; }
+    @media (max-width: 480px) {
+      body { padding: 18px 14px; }
+      table { min-width: 0; }
+      thead { display: none; }
+      tbody tr { display: block; border: 1px solid #304154; border-radius: 10px; margin: 12px 0; padding: 8px; }
+      td { display: flex; gap: 10px; padding: 7px; border: 0; }
+      td::before { content: attr(data-label); color: #aebbc9; flex: 0 0 95px; }
+    }
+  </style>
+</head>
+<body>
+  <nav><a href="/">← Tổng quan</a></nav>
+  <main>
+    <h1>Lịch sử: {{.Key}}</h1>
+    <p class="muted">Các lần thu thập gần đây, mới nhất ở trên.</p>
+    {{if .Items}}
+    <div class="scroll">
+      <table>
+        <thead><tr><th scope="col">Thời gian UTC</th><th scope="col">Trạng thái</th><th scope="col">Chi tiết</th></tr></thead>
+        <tbody>
+          {{range .Items}}
+          <tr><td data-label="Thời gian">{{.UpdatedAt.UTC.Format "02 Jan 2006 15:04:05"}}</td><td data-label="Trạng thái" class="{{if eq .Status "not configured"}}not-configured{{else}}{{.Status}}{{end}}">{{.Status}}</td><td data-label="Chi tiết">{{.Summary}}</td></tr>
+          {{end}}
+        </tbody>
+      </table>
+    </div>
+    {{else}}
+    <p>Chưa có lịch sử cho tín hiệu này.</p>
+    {{end}}
+  </main>
+</body>
+</html>
