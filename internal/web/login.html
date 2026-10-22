@@ -3,31 +3,42 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#09131d">
   <title>Đăng nhập · Personal Ops Hub</title>
   <style>
-    :root { color-scheme: dark; font-family: system-ui, sans-serif; background: #0b1118; color: #edf2f7; }
-    * { box-sizing: border-box; }
-    body { min-height: 100vh; display: grid; place-items: center; margin: 0; padding: 18px; }
-    main { width: min(100%, 400px); background: #141e29; border: 1px solid #304154; border-radius: 16px; padding: 26px; }
-    h1 { margin: 0 0 8px; font-size: 1.75rem; }
-    p { color: #aebbc9; line-height: 1.45; }
-    label { display: block; margin: 18px 0; }
-    input { display: block; width: 100%; padding: 12px; margin-top: 7px; border: 1px solid #71869a; border-radius: 8px; background: #0b1118; color: inherit; font: inherit; }
-    input:focus-visible, button:focus-visible { outline: 3px solid #9dd8ff; outline-offset: 3px; }
-    button { width: 100%; padding: 12px; border: 0; border-radius: 8px; background: #9dd8ff; color: #0b1118; font: inherit; font-weight: 700; cursor: pointer; }
+    :root { color-scheme:dark; font-family:Inter,ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif; background:#09131d; color:#eaf2f4; }
+    * { box-sizing:border-box; }
+    body { min-height:100vh; display:grid; place-items:center; margin:0; padding:24px; background:radial-gradient(circle at 75% 15%,#1d4245,transparent 38%),#09131d; }
+    main { width:min(100%,470px); }
+    .brand { display:flex; align-items:center; gap:12px; margin-bottom:30px; text-transform:uppercase; font-size:.82rem; font-weight:800; letter-spacing:.14em; }
+    .mark { display:grid; place-items:center; width:34px; height:34px; border-radius:10px; background:#68d9c3; color:#0a252a; font-size:1.35rem; }
+    .panel { padding:36px; background:#10242d; border:1px solid #2c4a54; border-radius:20px; box-shadow:0 26px 70px #0003; }
+    .eyebrow { color:#80d8cb; font-size:.72rem; font-weight:800; letter-spacing:.16em; text-transform:uppercase; margin:0 0 13px; }
+    h1 { margin:0; font-size:clamp(2rem,8vw,2.7rem); letter-spacing:-.055em; line-height:1.08; }
+    p { color:#a7bec4; line-height:1.55; margin:13px 0 30px; }
+    label { display:block; font-size:.85rem; font-weight:650; margin:18px 0; }
+    input { display:block; width:100%; padding:13px 14px; margin-top:8px; border:1px solid #45636c; border-radius:9px; background:#0b1b24; color:inherit; font:inherit; }
+    input:focus-visible,button:focus-visible { outline:3px solid #80ebd8; outline-offset:3px; }
+    button { width:100%; padding:14px; margin-top:10px; border:0; border-radius:9px; background:#83e1cf; color:#08262a; font:inherit; font-weight:800; cursor:pointer; }
+    button:hover { background:#a0f2df; }
+    .foot { text-align:center; color:#809fa8; font-size:.79rem; margin:24px 0 0; }
+    @media(max-width:480px) { body{padding:18px}.panel{padding:25px} }
   </style>
 </head>
 <body>
   <main>
-    <h1>Personal Ops Hub</h1>
-    <p>Đăng nhập để xem trạng thái các dịch vụ và tài khoản của bạn.</p>
-    <form method="post" action="/login">
-      <label for="username">Tên đăng nhập</label>
-      <input id="username" name="username" autocomplete="username" required autofocus>
-      <label for="password">Mật khẩu</label>
-      <input id="password" type="password" name="password" autocomplete="current-password" required>
-      <button type="submit">Đăng nhập</button>
-    </form>
+    <div class="brand"><span class="mark" aria-hidden="true">◈</span>Personal Ops Hub</div>
+    <div class="panel">
+      <p class="eyebrow">Owner access</p>
+      <h1>Mọi tín hiệu.<br>Một góc nhìn.</h1>
+      <p>Đăng nhập để xem trạng thái dịch vụ, usage và lịch sử trong không gian riêng của bạn.</p>
+      <form method="post" action="/login">
+        <label for="username">Tên đăng nhập<input id="username" name="username" autocomplete="username" required autofocus></label>
+        <label for="password">Mật khẩu<input id="password" type="password" name="password" autocomplete="current-password" required></label>
+        <button type="submit">Vào dashboard</button>
+      </form>
+    </div>
+    <p class="foot">Chỉ dành cho chủ tài khoản · Kết nối được cấu hình trên server</p>
   </main>
 </body>
 </html>

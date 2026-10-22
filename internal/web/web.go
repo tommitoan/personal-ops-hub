@@ -158,10 +158,12 @@ type dashboardSection struct {
 }
 
 type dashboardView struct {
-	Sections  []dashboardSection
-	Total     int
-	Attention int
-	Now       time.Time
+	Sections   []dashboardSection
+	Total      int
+	Attention  int
+	Healthy    int
+	Configured int
+	Now        time.Time
 }
 
 func buildDashboard(cards []core.Card, now time.Time) dashboardView {
@@ -192,6 +194,12 @@ func buildDashboard(cards []core.Card, now time.Time) dashboardView {
 			index = 5
 		}
 		sections[index].Cards = append(sections[index].Cards, c)
+		if c.Status != "not configured" {
+			view.Configured++
+		}
+		if c.Status == "healthy" {
+			view.Healthy++
+		}
 		if c.Status == "down" || c.Status == "degraded" || c.Status == "stale" || c.Status == "not configured" {
 			view.Attention++
 		}

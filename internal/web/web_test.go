@@ -80,7 +80,7 @@ func TestDashboardGroupingAndEscaping(t *testing.T) {
 		{Key: "railway:cost", Title: "Cost", Status: "not configured", Summary: "Add token", Source: "Railway", UpdatedAt: now},
 	}
 	view := buildDashboard(cards, now)
-	if view.Total != 3 || view.Attention != 2 || len(view.Sections) != 2 || view.Sections[0].Title != "Site health" || view.Sections[1].Title != "Railway" {
+	if view.Total != 3 || view.Attention != 2 || view.Healthy != 1 || view.Configured != 2 || len(view.Sections) != 2 || view.Sections[0].Title != "Site health" || view.Sections[1].Title != "Railway" {
 		t.Fatalf("unexpected dashboard groups: %+v", view)
 	}
 	if view.Sections[1].Cards[0].Title != "Cost" {
@@ -98,6 +98,29 @@ func TestDashboardGroupingAndEscaping(t *testing.T) {
 	}
 	if strings.Contains(result, "<script>alert(1)</script>") {
 		t.Fatal("dashboard rendered untrusted HTML")
+	}
+}
+
+func TestDashboardSetupShownUntilFirstConfiguredSignal(t *testing.T) {
+	now := time.Date(2026, 10, 22, 0, 0, 0, 0, time.UTC)
+	for _, cards := range [][]core.Card{
+		nil,
+		{{Key: "railway:cost", Title: "Railway", Status: "not configured", UpdatedAt: now}},
+	} {
+		var html bytes.Buffer
+		if err := page.Execute(&html, buildDashboard(cards, now)); err != nil {
+			t.Fatal(err)
+		}
+		if !strings.Contains(html.String(), "Kết nối nguồn dữ liệu đầu tiên") || !strings.Contains(html.String(), "SITES_JSON") {
+			t.Fatal("setup guidance missing for empty or unconfigured dashboard")
+		}
+	}
+	var html bytes.Buffer
+	if err := page.Execute(&html, buildDashboard([]core.Card{{Key: "site:one", Title: "Site", Status: "healthy", UpdatedAt: now}}, now)); err != nil {
+		t.Fatal(err)
+	}
+	if strings.Contains(html.String(), "Kết nối nguồn dữ liệu đầu tiên") {
+		t.Fatal("setup guidance shown after a real signal")
 	}
 }
 
