@@ -6,7 +6,7 @@ COPY . .
 RUN CGO_ENABLED=0 go build -trimpath -ldflags="-s -w" -o /hub ./cmd/hub
 
 FROM alpine:3.21
-RUN addgroup -S hub && adduser -S hub -G hub
+RUN apk add --no-cache ca-certificates && addgroup -S hub && adduser -S hub -G hub
 COPY --from=build /hub /hub
 USER hub
 EXPOSE 8080

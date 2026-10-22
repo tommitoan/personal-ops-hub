@@ -1,6 +1,7 @@
 package web
 
 import (
+	"bytes"
 	"context"
 	"crypto/hmac"
 	"crypto/rand"
@@ -12,6 +13,7 @@ import (
 	"html/template"
 	"net/http"
 	"os"
+	"sort"
 	"strconv"
 	"strings"
 	"time"
@@ -21,9 +23,11 @@ import (
 	"github.com/tommitoan/personal-ops-hub/internal/store"
 )
 
-//go:embed dashboard.html
+//go:embed dashboard.html history.html login.html
 var files embed.FS
 var page = template.Must(template.ParseFS(files, "dashboard.html"))
+var historyPage = template.Must(template.ParseFS(files, "history.html"))
+var loginTemplate = template.Must(template.ParseFS(files, "login.html"))
 
 // Server serves a private owner-only dashboard and read-only JSON endpoints.
 type Server struct {
@@ -44,7 +48,8 @@ func (s *Server) Handler() http.Handler {
 	mux.HandleFunc("GET /login", s.loginPage)
 	mux.HandleFunc("POST /login", s.login)
 	mux.HandleFunc("POST /logout", s.private(s.logout))
-	mux.HandleFunc("GET /", s.private(s.dashboard))
+	mux.HandleFunc("GET /{$}", s.private(s.dashboard))
+	mux.HandleFunc("GET /history", s.private(s.historyPage))
 	mux.HandleFunc("GET /api/cards", s.private(s.cards))
 	mux.HandleFunc("GET /api/history", s.private(s.history))
 	return securityHeaders(mux)
@@ -74,8 +79,7 @@ func (s *Server) loginPage(w http.ResponseWriter, r *http.Request) {
 		http.Redirect(w, r, "/", http.StatusSeeOther)
 		return
 	}
-	w.Header().Set("Content-Type", "text/html; charset=utf-8")
-	w.Write([]byte(`<!doctype html><html><head><meta name="viewport" content="width=device-width, initial-scale=1"><title>Personal Ops Hub</title><style>body{background:#0d1117;color:#e6edf3;font:16px system-ui;max-width:360px;margin:12vh auto;padding:20px}input,button{display:block;width:100%;box-sizing:border-box;padding:12px;margin:12px 0;border-radius:8px}button{background:#58a6ff;border:0;font-weight:bold}</style></head><body><h1>Personal Ops Hub</h1><form method="post" action="/login"><label>Username<input name="username" autocomplete="username" required></label><label>Password<input type="password" name="password" autocomplete="current-password" required></label><button>Sign in</button></form></body></html>`))
+	renderHTML(w, loginTemplate, nil)
 }
 func (s *Server) login(w http.ResponseWriter, r *http.Request) {
 	if e := r.ParseForm(); e != nil {
@@ -84,8 +88,10 @@ func (s *Server) login(w http.ResponseWriter, r *http.Request) {
 	}
 	user := r.Form.Get("username")
 	password := r.Form.Get("password")
-	validUser := subtle.ConstantTimeCompare([]byte(user), []byte(s.Config.Username)) == 1
-	validPass := subtle.ConstantTimeCompare([]byte(password), []byte(s.Config.Password)) == 1
+	userHash, expectedUserHash := sha256.Sum256([]byte(user)), sha256.Sum256([]byte(s.Config.Username))
+	passwordHash, expectedPasswordHash := sha256.Sum256([]byte(password)), sha256.Sum256([]byte(s.Config.Password))
+	validUser := subtle.ConstantTimeCompare(userHash[:], expectedUserHash[:]) == 1
+	validPass := subtle.ConstantTimeCompare(passwordHash[:], expectedPasswordHash[:]) == 1
 	if !validUser || !validPass {
 		time.Sleep(300 * time.Millisecond)
 		http.Error(w, "invalid credentials", 401)
@@ -117,7 +123,7 @@ func (s *Server) authenticated(r *http.Request) bool {
 		return false
 	}
 	expiry, e := strconv.ParseInt(parts[0], 10, 64)
-	if e != nil || time.Now().Unix() > expiry {
+	if e != nil || time.Now().Unix() >= expiry {
 		return false
 	}
 	payload := parts[0] + "." + parts[1]
@@ -143,11 +149,82 @@ func (s *Server) dashboard(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "dashboard unavailable", 500)
 		return
 	}
-	w.Header().Set("Content-Type", "text/html; charset=utf-8")
-	page.Execute(w, struct {
-		Cards []core.Card
-		Now   time.Time
-	}{cards, time.Now().UTC()})
+	renderHTML(w, page, buildDashboard(cards, time.Now().UTC()))
+}
+
+type dashboardSection struct {
+	Title string
+	Cards []core.Card
+}
+
+type dashboardView struct {
+	Sections  []dashboardSection
+	Total     int
+	Attention int
+	Now       time.Time
+}
+
+func buildDashboard(cards []core.Card, now time.Time) dashboardView {
+	sections := []dashboardSection{
+		{Title: "Site health"},
+		{Title: "Railway"},
+		{Title: "Cloudflare R2"},
+		{Title: "GitHub"},
+		{Title: "Request traffic"},
+		{Title: "Domains"},
+		{Title: "Other"},
+	}
+	view := dashboardView{Now: now, Total: len(cards)}
+	for _, c := range cards {
+		index := 6
+		switch {
+		case strings.HasPrefix(c.Key, "site:"):
+			index = 0
+		case strings.HasPrefix(c.Key, "railway:"):
+			index = 1
+		case strings.HasPrefix(c.Key, "r2:"):
+			index = 2
+		case strings.HasPrefix(c.Key, "github:"):
+			index = 3
+		case strings.HasPrefix(c.Key, "requests:"):
+			index = 4
+		case strings.HasPrefix(c.Key, "domain:"):
+			index = 5
+		}
+		sections[index].Cards = append(sections[index].Cards, c)
+		if c.Status == "down" || c.Status == "degraded" || c.Status == "stale" || c.Status == "not configured" {
+			view.Attention++
+		}
+	}
+	for _, section := range sections {
+		if len(section.Cards) == 0 {
+			continue
+		}
+		sort.SliceStable(section.Cards, func(i, j int) bool {
+			a, b := statusRank(section.Cards[i].Status), statusRank(section.Cards[j].Status)
+			if a != b {
+				return a < b
+			}
+			return section.Cards[i].Title < section.Cards[j].Title
+		})
+		view.Sections = append(view.Sections, section)
+	}
+	return view
+}
+
+func statusRank(status string) int {
+	switch status {
+	case "down":
+		return 0
+	case "stale":
+		return 1
+	case "degraded":
+		return 2
+	case "not configured":
+		return 3
+	default:
+		return 4
+	}
 }
 func (s *Server) cards(w http.ResponseWriter, r *http.Request) {
 	cards, e := s.Store.Cards(r.Context())
@@ -159,19 +236,9 @@ func (s *Server) cards(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(cards)
 }
 func (s *Server) history(w http.ResponseWriter, r *http.Request) {
-	key := r.URL.Query().Get("key")
-	if len(key) > 150 || key == "" {
-		http.Error(w, "key required", 400)
+	key, limit, ok := historyParams(w, r)
+	if !ok {
 		return
-	}
-	limit := 50
-	if x := r.URL.Query().Get("limit"); x != "" {
-		n, e := strconv.Atoi(x)
-		if e != nil || n < 1 || n > 200 {
-			http.Error(w, "invalid limit", 400)
-			return
-		}
-		limit = n
 	}
 	items, e := s.Store.History(r.Context(), key, limit)
 	if e != nil {
@@ -180,4 +247,48 @@ func (s *Server) history(w http.ResponseWriter, r *http.Request) {
 	}
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(items)
+}
+
+func (s *Server) historyPage(w http.ResponseWriter, r *http.Request) {
+	key, limit, ok := historyParams(w, r)
+	if !ok {
+		return
+	}
+	items, err := s.Store.History(r.Context(), key, limit)
+	if err != nil {
+		http.Error(w, "history unavailable", 500)
+		return
+	}
+	renderHTML(w, historyPage, struct {
+		Key   string
+		Items []core.Card
+	}{Key: key, Items: items})
+}
+
+func renderHTML(w http.ResponseWriter, tmpl *template.Template, data any) {
+	var buf bytes.Buffer
+	if err := tmpl.Execute(&buf, data); err != nil {
+		http.Error(w, "page unavailable", http.StatusInternalServerError)
+		return
+	}
+	w.Header().Set("Content-Type", "text/html; charset=utf-8")
+	w.Write(buf.Bytes())
+}
+
+func historyParams(w http.ResponseWriter, r *http.Request) (string, int, bool) {
+	key := r.URL.Query().Get("key")
+	if len(key) > 150 || key == "" {
+		http.Error(w, "key required", 400)
+		return "", 0, false
+	}
+	limit := 50
+	if x := r.URL.Query().Get("limit"); x != "" {
+		n, err := strconv.Atoi(x)
+		if err != nil || n < 1 || n > 200 {
+			http.Error(w, "invalid limit", 400)
+			return "", 0, false
+		}
+		limit = n
+	}
+	return key, limit, true
 }

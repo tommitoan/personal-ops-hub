@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"math"
 	"net/http"
 	"strconv"
 	"strings"
@@ -42,45 +43,77 @@ func (c *Collector) graphql(ctx context.Context, endpoint, token, query string, 
 	if e != nil {
 		return e
 	}
-	req, e := http.NewRequestWithContext(ctx, "POST", endpoint, bytes.NewReader(payload))
-	if e != nil {
-		return e
+	for attempt := 0; attempt < 2; attempt++ {
+		req, err := http.NewRequestWithContext(ctx, "POST", endpoint, bytes.NewReader(payload))
+		if err != nil {
+			return err
+		}
+		req.Header.Set("Authorization", "Bearer "+token)
+		req.Header.Set("Content-Type", "application/json")
+		req.Header.Set("User-Agent", "personal-ops-hub/1")
+		res, err := c.Client.Do(req)
+		if err != nil {
+			if attempt == 0 && ctx.Err() == nil {
+				if err := retryDelay(ctx); err != nil {
+					return err
+				}
+				continue
+			}
+			return err
+		}
+		if attempt == 0 && res.StatusCode >= 500 {
+			res.Body.Close()
+			if err := retryDelay(ctx); err != nil {
+				return err
+			}
+			continue
+		}
+		if res.StatusCode != http.StatusOK {
+			res.Body.Close()
+			return fmt.Errorf("provider HTTP %d", res.StatusCode)
+		}
+		var envelope struct {
+			Data   json.RawMessage   `json:"data"`
+			Errors []json.RawMessage `json:"errors"`
+		}
+		err = json.NewDecoder(io.LimitReader(res.Body, 2<<20)).Decode(&envelope)
+		res.Body.Close()
+		if err != nil {
+			return err
+		}
+		if len(envelope.Errors) > 0 {
+			return errors.New("provider GraphQL errors")
+		}
+		if len(envelope.Data) == 0 || string(envelope.Data) == "null" {
+			return errors.New("provider returned no data")
+		}
+		return json.Unmarshal(envelope.Data, dst)
 	}
-	req.Header.Set("Authorization", "Bearer "+token)
-	req.Header.Set("Content-Type", "application/json")
-	req.Header.Set("User-Agent", "personal-ops-hub/1")
-	res, e := c.Client.Do(req)
-	if e != nil {
-		return e
+	return errors.New("provider retry exhausted")
+}
+
+func retryDelay(ctx context.Context) error {
+	timer := time.NewTimer(250 * time.Millisecond)
+	defer timer.Stop()
+	select {
+	case <-ctx.Done():
+		return ctx.Err()
+	case <-timer.C:
+		return nil
 	}
-	defer res.Body.Close()
-	if res.StatusCode != 200 {
-		return fmt.Errorf("provider HTTP %d", res.StatusCode)
-	}
-	var envelope struct {
-		Data   json.RawMessage   `json:"data"`
-		Errors []json.RawMessage `json:"errors"`
-	}
-	if e = json.NewDecoder(io.LimitReader(res.Body, 2<<20)).Decode(&envelope); e != nil {
-		return e
-	}
-	if len(envelope.Errors) > 0 {
-		return errors.New("provider GraphQL errors")
-	}
-	if len(envelope.Data) == 0 || string(envelope.Data) == "null" {
-		return errors.New("provider returned no data")
-	}
-	return json.Unmarshal(envelope.Data, dst)
 }
 
 // Railway fetches billing-period usage and current resource measurements.
 func (c *Collector) Railway(ctx context.Context, cfg config.Config, now time.Time) []core.Card {
+	return c.railway(ctx, cfg, now, "https://backboard.railway.com/graphql/v2")
+}
+
+func (c *Collector) railway(ctx context.Context, cfg config.Config, now time.Time, endpoint string) []core.Card {
 	cost := card("railway:cost", "Railway current usage", "Railway GraphQL", "https://railway.com/workspace/usage", now)
 	cpu := card("railway:cpu", "Railway CPU usage", "Railway GraphQL", "https://railway.com/workspace/usage", now)
 	if cfg.RailwayToken == "" || cfg.RailwayWorkspaceID == "" {
 		return []core.Card{cost, cpu}
 	}
-	const endpoint = "https://backboard.railway.com/graphql/v2"
 	var billing struct {
 		Workspace struct {
 			Customer struct {
@@ -123,22 +156,32 @@ func (c *Collector) Railway(ctx context.Context, cfg config.Config, now time.Tim
 		cpu = failed(cpu)
 	} else {
 		var total float64
+		found := false
 		for _, m := range metrics.Metrics {
 			if m.Measurement == "CPU_USAGE" && len(m.Values) > 0 {
 				total += m.Values[len(m.Values)-1].Value
+				found = true
 			}
 		}
-		cpu.Status = "healthy"
-		cpu.Unit = "vCPU"
-		cpu.Summary = fmt.Sprintf("%.3f vCPU latest across services", total)
-		cpu.Window = "last hour"
-		cpu.ExpiresAt = now.Add(2 * time.Hour)
+		if !found {
+			cpu = failed(cpu)
+		} else {
+			cpu.Status = "healthy"
+			cpu.Unit = "vCPU"
+			cpu.Summary = fmt.Sprintf("%.3f vCPU latest across services", total)
+			cpu.Window = "last hour"
+			cpu.ExpiresAt = now.Add(2 * time.Hour)
+		}
 	}
 	return []core.Card{cost, cpu}
 }
 
 // GitHub fetches the authenticated user's contribution total for the current year.
 func (c *Collector) GitHub(ctx context.Context, cfg config.Config, now time.Time) core.Card {
+	return c.github(ctx, cfg, now, "https://api.github.com/graphql")
+}
+
+func (c *Collector) github(ctx context.Context, cfg config.Config, now time.Time, endpoint string) core.Card {
 	result := card("github:activity", "GitHub contributions", "GitHub GraphQL", "https://github.com/"+cfg.GitHubLogin, now)
 	if cfg.GitHubToken == "" || cfg.GitHubLogin == "" {
 		return result
@@ -154,7 +197,7 @@ func (c *Collector) GitHub(ctx context.Context, cfg config.Config, now time.Time
 		} `json:"user"`
 	}
 	from := time.Date(now.Year(), 1, 1, 0, 0, 0, 0, time.UTC)
-	if e := c.graphql(ctx, "https://api.github.com/graphql", cfg.GitHubToken, query, map[string]any{"login": cfg.GitHubLogin, "from": from.Format(time.RFC3339), "to": now.Format(time.RFC3339)}, &data); e != nil || data.User == nil {
+	if e := c.graphql(ctx, endpoint, cfg.GitHubToken, query, map[string]any{"login": cfg.GitHubLogin, "from": from.Format(time.RFC3339), "to": now.Format(time.RFC3339)}, &data); e != nil || data.User == nil {
 		return failed(result)
 	}
 	result.Status = "healthy"
@@ -165,6 +208,10 @@ func (c *Collector) GitHub(ctx context.Context, cfg config.Config, now time.Time
 
 // R2 fetches per-bucket operations, storage, and bandwidth from Cloudflare Analytics.
 func (c *Collector) R2(ctx context.Context, cfg config.Config, now time.Time) []core.Card {
+	return c.r2(ctx, cfg, now, "https://api.cloudflare.com/client/v4/graphql")
+}
+
+func (c *Collector) r2(ctx context.Context, cfg config.Config, now time.Time, endpoint string) []core.Card {
 	if len(cfg.R2Buckets) == 0 {
 		return []core.Card{card("r2:overview", "R2 usage", "Cloudflare GraphQL", "https://dash.cloudflare.com/", now)}
 	}
@@ -201,11 +248,15 @@ func (c *Collector) R2(ctx context.Context, cfg config.Config, now time.Time) []
 			} `json:"viewer"`
 		}
 		vars := map[string]any{"accountTag": cfg.CloudflareAccountID, "startDate": now.Add(-24 * time.Hour).Format(time.RFC3339), "endDate": now.Format(time.RFC3339), "bucketName": bucket}
-		if e := c.graphql(ctx, "https://api.cloudflare.com/client/v4/graphql", cfg.CloudflareToken, query, vars, &data); e != nil || len(data.Viewer.Accounts) == 0 {
+		if e := c.graphql(ctx, endpoint, cfg.CloudflareToken, query, vars, &data); e != nil || len(data.Viewer.Accounts) == 0 {
 			out = append(out, failed(result))
 			continue
 		}
 		a := data.Viewer.Accounts[0]
+		if len(a.Ops) == 0 && len(a.Storage) == 0 && len(a.Bandwidth) == 0 {
+			out = append(out, failed(result))
+			continue
+		}
 		var ops, up, down int64
 		for _, v := range a.Ops {
 			ops += v.Sum.Requests
@@ -269,12 +320,20 @@ func ParsePrometheusRequests(body string) (float64, error) {
 		if !strings.HasPrefix(line, "http_requests_total ") && !strings.HasPrefix(line, "http_requests_total{") {
 			continue
 		}
-		fields := strings.Fields(line)
-		if len(fields) < 2 {
-			continue
+		valuePart := strings.TrimPrefix(line, "http_requests_total")
+		if strings.HasPrefix(valuePart, "{") {
+			end := labelEnd(valuePart)
+			if end < 0 {
+				return 0, errors.New("invalid request labels")
+			}
+			valuePart = valuePart[end+1:]
 		}
-		v, e := strconv.ParseFloat(fields[1], 64)
-		if e != nil || v < 0 {
+		fields := strings.Fields(valuePart)
+		if len(fields) == 0 {
+			return 0, errors.New("request counter absent value")
+		}
+		v, e := strconv.ParseFloat(fields[0], 64)
+		if e != nil || v < 0 || math.IsNaN(v) || math.IsInf(v, 0) {
 			return 0, errors.New("invalid request counter")
 		}
 		total += v
@@ -284,4 +343,26 @@ func ParsePrometheusRequests(body string) (float64, error) {
 		return 0, errors.New("request counter absent")
 	}
 	return total, nil
+}
+
+func labelEnd(s string) int {
+	quoted, escaped := false, false
+	for i, ch := range s {
+		if escaped {
+			escaped = false
+			continue
+		}
+		if ch == '\\' && quoted {
+			escaped = true
+			continue
+		}
+		if ch == '"' {
+			quoted = !quoted
+			continue
+		}
+		if ch == '}' && !quoted {
+			return i
+		}
+	}
+	return -1
 }
