@@ -1,0 +1,1 @@
+{"data":{"metrics":[{"measurement":"CPU_USAGE","tags":{"serviceId":"example-service"},"values":[{"ts":"2026-10-22T00:00:00Z","value":0.25}]}]}}
